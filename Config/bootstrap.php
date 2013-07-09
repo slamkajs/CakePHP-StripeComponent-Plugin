@@ -10,15 +10,3 @@ Configure::write('Stripe.fields', array(
     'stripe_cvc_check' => array('card' => 'cvc_check'),
     'stripe_amount' => 'amount'
 ));
-
-CakePlugin::load('Opauth', array('routes' => true, 'bootstrap' => true));
-Configure::write('Opauth.Strategy.Facebook', array(
-   'app_id' => '489011857809805',
-   'app_secret' => '936cde3602a722d17f7d01b684b6e3f4',
-   'scope' => 'user_location, user_education_history, user_work_history'
-));
-Configure::write('Opauth.Strategy.LinkedIn', array(
-   'api_key' => 'i1yhvah6c8ib',
-   'secret_key' => 'TqWiVPuVUnrczE6a',
-   'scope' => 'r_fullprofile r_emailaddress'
-));
