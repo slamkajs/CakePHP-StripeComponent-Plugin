@@ -101,7 +101,7 @@ class StripeComponent extends Component {
 		}
 
 		// $data MUST contain 'amount' and 'stripeToken' to make a charge.
-		if (!isset($data['amount']) || !isset($data['stripeToken'])) {
+		if (!isset($data['amount']) || (!isset($data['stripeToken']) && !isset($data['customer']))) {
 			throw new CakeException('The required amount or stripeToken fields are missing.');
 		}
 
@@ -109,7 +109,7 @@ class StripeComponent extends Component {
 		if (!is_numeric($data['amount'])) {
 			throw new CakeException('Amount must be numeric.');
 		}
-
+		
 		// set the (optional) description field to null if not set in $data
 		if (!isset($data['description'])) {
 			$data['description'] = null;
@@ -118,15 +118,21 @@ class StripeComponent extends Component {
 		// format the amount, in cents.
 		$data['amount'] = $data['amount'] * 100;
 
+		$cardOrCustomer = array();
+		if(isset($data['stripeToken'])) {
+			$cardOrCustomer['card'] = $data['stripeToken'];
+		} else {
+			$cardOrCustomer['customer'] = $data['customer'];
+		}
+
 		Stripe::setApiKey($key);
 		$error = null;
 		try {
-			$charge = Stripe_Charge::create(array(
+			$charge = Stripe_Charge::create(array_merge(array(
 				'amount' => $data['amount'],
 				'currency' => $this->currency,
-				'card' => $data['stripeToken'],
 				'description' => $data['description']
-			));
+			), $cardOrCustomer));
 
 		} catch(Stripe_CardError $e) {
 			$body = $e->getJsonBody();
@@ -163,6 +169,62 @@ class StripeComponent extends Component {
 		return $this->_formatResult($charge);
 	}
 
+
+/**
+ * The createCustomer method prepares data for Stripe_Customer::create and attempts to
+ * create a new customer.
+ *
+ */
+	public function createCustomer($data) {
+		// set the Stripe API key
+		$key = Configure::read('Stripe.' . $this->mode . 'Secret');
+		if (!$key) {
+			throw new CakeException('Stripe API key is not set.');
+		}
+
+		Stripe::setApiKey($key);
+		$error = null;
+		try {
+			$customer = Stripe_Customer::create(array(
+				'card' => $data['stripeToken'],
+				'email' => $data['email']
+			));
+
+		} catch(Stripe_CardError $e) {
+			$body = $e->getJsonBody();
+			$err = $body['error'];
+			CakeLog::error('Stripe: ' . $err['type'] . ': ' . $err['code'] . ': ' . $err['message'], 'stripe');
+			$error = $err['message'];
+
+		} catch (Stripe_InvalidRequestError $e) {
+			$body = $e->getJsonBody();
+			$err = $body['error'];
+			CakeLog::error('Stripe: ' . $err['type'] . ': ' . $err['message'], 'stripe');
+			$error = $err['message'];
+
+		} catch (Stripe_AuthenticationError $e) {
+			CakeLog::error('Stripe: API key rejected!', 'stripe');
+			$error = 'Payment processor API key error.';
+
+		} catch (Stripe_Error $e) {
+			CakeLog::error('Stripe: Stripe_Error - Stripe could be down.', 'stripe');
+			$error = 'Payment processor error, try again later.';
+
+		} catch (Exception $e) {
+			CakeLog::error('Stripe: Unknown error.', 'stripe');
+			$error = 'There was an error, try again later.';
+		}
+
+		if ($error !== null) {
+			// an error is always a string
+			return (string)$error;
+		}
+
+		CakeLog::info('Stripe: new customer id ' . $customer->id, 'stripe');
+
+		return $this->_formatResult($customer);
+	}
+
 /**
  * Returns an array of fields we want from Stripe's charge object
  *
@@ -170,15 +232,15 @@ class StripeComponent extends Component {
  * @param object $charge A successful charge object.
  * @return array The desired fields from the charge object as an array.
  */
-	protected function _formatResult($charge) {
+	protected function _formatResult($data) {
 		$result = array();
 		foreach ($this->fields as $local => $stripe) {
 			if (is_array($stripe)) {
 				foreach ($stripe as $obj => $field) {
-					$result[$local] = $charge->$obj->$field;
+					$result[$local] = $data->$obj->$field;
 				}
 			} else {
-				$result[$local] = $charge->$stripe;
+				$result[$local] = $data->$stripe;
 			}
 		}
 		return $result;
