@@ -166,7 +166,7 @@ class StripeComponent extends Component {
 
 		CakeLog::info('Stripe: charge id ' . $charge->id, 'stripe');
 
-		return $this->_formatResult($charge);
+		return $this->_formatResult('charge', $charge);
 	}
 
 
@@ -222,7 +222,7 @@ class StripeComponent extends Component {
 
 		CakeLog::info('Stripe: new customer id ' . $customer->id, 'stripe');
 
-		return $this->_formatResult($customer);
+		return $this->_formatResult('customer', $customer);
 	}
 
 /**
@@ -232,18 +232,23 @@ class StripeComponent extends Component {
  * @param object $charge A successful charge object.
  * @return array The desired fields from the charge object as an array.
  */
-	protected function _formatResult($data) {
+	protected function _formatResult($type, $data) {
 		$result = array();
-		foreach ($this->fields as $local => $stripe) {
-			if (is_array($stripe)) {
-				foreach ($stripe as $obj => $field) {
-					$result[$local] = $data->$obj->$field;
+
+		if(isset($this->fields[$type])) {
+			foreach ($this->fields[$type] as $local => $stripe) {
+				if (is_array($stripe)) {
+					foreach ($stripe as $obj => $field) {
+						$result[$local] = $data->$obj->$field;
+					}
+				} else {
+					$result[$local] = $data->$stripe;
 				}
-			} else {
-				$result[$local] = $data->$stripe;
 			}
+			return $result;
+		} else {
+			return array($type => $data);
 		}
-		return $result;
 	}
 
 }
