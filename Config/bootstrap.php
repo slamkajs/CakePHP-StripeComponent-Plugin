@@ -11,5 +11,8 @@ Configure::write('Stripe.fields', array(
 	    'stripe_cvc_check' => array('card' => 'cvc_check'),
 	    'stripe_amount' => 'amount',
 	    'stripe_customer' => 'customer'),
-	'customer' => array(
-		'stripe_id' => 'id')));
+    'customer' => array(
+        'stripe_id' => 'id'),
+    'new_card' => array(
+        'stripe_id' => 'id',
+        'cards' => array('cards' => 'data'))));
