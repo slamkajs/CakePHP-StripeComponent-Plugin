@@ -83,6 +83,63 @@ class StripeComponent extends Component {
 		}
 	}
 
+
+/**
+ * The addCard method prepares data for Stripe_Customer::save and attempts to
+ * add a new card to an existing customer.
+ *
+ */
+	public function addCard($data) {
+		// set the Stripe API key
+		$key = Configure::read('Stripe.' . $this->mode . 'Secret');
+		if (!$key) {
+			throw new CakeException('Stripe API key is not set.');
+		}
+
+
+		Stripe::setApiKey($key);
+		$error = null;
+		try {
+
+			$customer = Stripe_Customer::retrieve($data['customer']);
+
+			$customer->cards->create(array('card' => $data['card']));
+
+		} catch(Stripe_CardError $e) {
+			$body = $e->getJsonBody();
+			$err = $body['error'];
+			CakeLog::error('Stripe: ' . $err['type'] . ': ' . $err['code'] . ': ' . $err['message'], 'stripe');
+			$error = $err['message'];
+
+		} catch (Stripe_InvalidRequestError $e) {
+			$body = $e->getJsonBody();
+			$err = $body['error'];
+			CakeLog::error('Stripe: ' . $err['type'] . ': ' . $err['message'], 'stripe');
+			$error = $err['message'];
+
+		} catch (Stripe_AuthenticationError $e) {
+			CakeLog::error('Stripe: API key rejected!', 'stripe');
+			$error = 'Payment processor API key error.';
+
+		} catch (Stripe_Error $e) {
+			CakeLog::error('Stripe: Stripe_Error - Stripe could be down.', 'stripe');
+			$error = 'Payment processor error, try again later.';
+
+		} catch (Exception $e) {
+			CakeLog::error('Stripe: Unknown error.', 'stripe');
+			$error = 'There was an error, try again later.';
+		}
+
+		if ($error !== null) {
+			// an error is always a string
+			return (string)$error;
+		}
+
+		CakeLog::info('Stripe: new customer id ' . $customer->id, 'stripe');
+
+		return $this->_formatResult('customer', $customer);
+	}
+
 /**
  * The charge method prepares data for Stripe_Charge::create and attempts a
  * transaction.
@@ -121,7 +178,9 @@ class StripeComponent extends Component {
 		$cardOrCustomer = array();
 		if(isset($data['stripeToken'])) {
 			$cardOrCustomer['card'] = $data['stripeToken'];
-		} else {
+		} 
+
+		if(isset($data['customer'])){
 			$cardOrCustomer['customer'] = $data['customer'];
 		}
 
@@ -171,80 +230,8 @@ class StripeComponent extends Component {
 
 
 /**
- * The createCard method prepares data for Stripe_Card::create and attempts to
- * create a new customer.
- *
- * @param array	$data Must contain 'email'.
- * @return array $customer if success, string $error if failure.
- * @throws CakeException
- * @throws CakeException
- * @throws CakeException
- *
- */
-	public function createCard($data) {
-		// set the Stripe API key
-		$key = Configure::read('Stripe.' . $this->mode . 'Secret');
-		if (!$key) {
-			throw new CakeException('Stripe API key is not set.');
-		}
-
-		Stripe::setApiKey($key);
-		$error = null;
-		try {
-			// GET CUSTOMER INFO
-			$customer = Stripe_Customer::retrieve($data['customer']);
-
-			// ADD CARD
-			$customer->card = $data['card'];
-
-			// SAVE CUSTOMER
-			$customer = $customer->save();
-
-		} catch(Stripe_CardError $e) {
-			$body = $e->getJsonBody();
-			$err = $body['error'];
-			CakeLog::error('Stripe: ' . $err['type'] . ': ' . $err['code'] . ': ' . $err['message'], 'stripe');
-			$error = $err['message'];
-
-		} catch (Stripe_InvalidRequestError $e) {
-			$body = $e->getJsonBody();
-			$err = $body['error'];
-			CakeLog::error('Stripe: ' . $err['type'] . ': ' . $err['message'], 'stripe');
-			$error = $err['message'];
-
-		} catch (Stripe_AuthenticationError $e) {
-			CakeLog::error('Stripe: API key rejected!', 'stripe');
-			$error = 'Payment processor API key error.';
-
-		} catch (Stripe_Error $e) {
-			CakeLog::error('Stripe: Stripe_Error - Stripe could be down.', 'stripe');
-			$error = 'Payment processor error, try again later.';
-
-		} catch (Exception $e) {
-			CakeLog::error('Stripe: Unknown error.', 'stripe');
-			$error = 'There was an error, try again later.';
-		}
-
-		if ($error !== null) {
-			// an error is always a string
-			return (string)$error;
-		}
-
-		CakeLog::info('Stripe: updated customer id ' . $customer->id, 'stripe');
-
-		return $this->_formatResult('new_card', $customer);
-	}
-
-
-/**
  * The createCustomer method prepares data for Stripe_Customer::create and attempts to
  * create a new customer.
- *
- * @param array	$data Must contain 'email'.
- * @return array $customer if success, string $error if failure.
- * @throws CakeException
- * @throws CakeException
- * @throws CakeException
  *
  */
 	public function createCustomer($data) {
@@ -257,16 +244,14 @@ class StripeComponent extends Component {
 		Stripe::setApiKey($key);
 		$error = null;
 		try {
-			if(isset($data['stripeToken'])) {
-				$customer = Stripe_Customer::create(array(
-					'card' => $data['stripeToken'],
-					'email' => $data['email']
-				));
-			} else {
-				$customer = Stripe_Customer::create(array(
-					'email' => $data['email']
-				));
-			}
+			$stripeData = array(
+				'card' => (isset($data['stripeToken']) ? $data['stripeToken'] : ''),
+				'email' => $data['email']
+			);
+
+			if(empty($stripeData['card'])) unset($stripeData['card']);
+
+			$customer = Stripe_Customer::create($stripeData);
 
 		} catch(Stripe_CardError $e) {
 			$body = $e->getJsonBody();
@@ -302,20 +287,12 @@ class StripeComponent extends Component {
 
 		return $this->_formatResult('customer', $customer);
 	}
-
-
 /**
- * The createCard method prepares data for Stripe_Card::create and attempts to
- * create a new customer.
- *
- * @param array	$data Must contain 'email'.
- * @return array $customer if success, string $error if failure.
- * @throws CakeException
- * @throws CakeException
- * @throws CakeException
+ * The getCards method attempts to retrieve a list of cards for provided customer
+ * add a new card to an existing customer.
  *
  */
-	public function getCards($data) {
+	public function getCards($customer) {
 		// set the Stripe API key
 		$key = Configure::read('Stripe.' . $this->mode . 'Secret');
 		if (!$key) {
@@ -325,10 +302,18 @@ class StripeComponent extends Component {
 		Stripe::setApiKey($key);
 		$error = null;
 		try {
-			// GET CUSTOMER INFO
-			$customer = Stripe_Customer::retrieve($data['customer']);
 
-			var_dump($customer->cards['data']);exit;
+			$cards = Stripe_Customer::retrieve($customer)->cards->all();
+
+			$cards_formatted = array();
+
+			// FORMAT CARDS
+			foreach ($cards->data as $cnt => $card) {
+				$cards_formatted[$cnt] = array(
+					'card_id' => $card->id,
+					'last4' => $card->last4,
+					'type' => $card->type);
+			}
 
 		} catch(Stripe_CardError $e) {
 			$body = $e->getJsonBody();
@@ -360,9 +345,9 @@ class StripeComponent extends Component {
 			return (string)$error;
 		}
 
-		CakeLog::info('Stripe: updated customer id ' . $customer->id, 'stripe');
+		CakeLog::info('Stripe: retieving cards for customer id ' . $customer, 'stripe');
 
-		return $this->_formatResult('new_card', $customer);
+		return $cards_formatted;
 	}
 
 /**
