@@ -372,6 +372,10 @@ class StripeComponent extends Component {
 			}
 			return $result;
 		} else {
+			foreach ($data as $cnt => $elem) {
+				var_dump($data[$cnt]);
+			}
+			exit;
 			return array($type => $data);
 		}
 	}
