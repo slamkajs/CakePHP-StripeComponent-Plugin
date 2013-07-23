@@ -345,9 +345,9 @@ class StripeComponent extends Component {
 			return (string)$error;
 		}
 
-		CakeLog::info('Stripe: retieving cards for customer id ' . $customer, 'stripe');
+		CakeLog::info('Stripe: retrieving cards for customer id ' . $customer, 'stripe');
 
-		return $cards_formatted;
+		return (isset($cards_formatted) ? $cards_formatted : array());
 	}
 
 /**
