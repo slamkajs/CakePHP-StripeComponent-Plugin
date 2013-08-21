@@ -14,4 +14,10 @@ Configure::write('Stripe.fields', array(
 	    'stripe_amount' => 'amount',
 	    'stripe_customer' => 'customer'),
 	'customer' => array(
-		'stripe_id' => 'id')));
+		'stripe_id' => 'id'),
+	'refund' => array(
+	    'stripe_id' => 'id',
+	    'stripe_last4' => array('card' => 'last4'),
+	    'stripe_card-type' => array('card' => 'type'),
+	    'stripe_amount' => 'amount_refunded',
+	    'stripe_customer' => 'customer')));

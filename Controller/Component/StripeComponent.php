@@ -351,6 +351,73 @@ class StripeComponent extends Component {
 	}
 
 /**
+ * The refund method attempts to refund a charge
+ *
+ * @param array	$data Must contain 'amount' and 'stripeToken'.
+ * @return array $charge if success, string $error if failure.
+ * @throws CakeException
+ * @throws CakeException
+ * @throws CakeException
+ */
+	public function refund($data) {
+		// set the Stripe API key
+		$key = Configure::read('Stripe.' . $this->mode . 'Secret');
+		if (!$key) {
+			throw new CakeException('Stripe API key is not set.');
+		}
+
+		// $data MUST contain 'amount' and 'stripeToken' to make a charge.
+		if (!isset($data['charge_id'])) {
+			throw new CakeException('The charge id is missing.');
+		}
+
+		// if supplied amount is not numeric, abort.
+		if (empty($data['charge_id'])) {
+			throw new CakeException('The charge id is empty.');
+		}
+
+		Stripe::setApiKey($key);
+		$error = null;
+		try {
+			$charge = Stripe_Charge::retrieve($data['charge_id']);
+			$charge->refund();
+
+		} catch(Stripe_CardError $e) {
+			$body = $e->getJsonBody();
+			$err = $body['error'];
+			CakeLog::error('Stripe: ' . $err['type'] . ': ' . $err['code'] . ': ' . $err['message'], 'stripe');
+			$error = $err['message'];
+
+		} catch (Stripe_InvalidRequestError $e) {
+			$body = $e->getJsonBody();
+			$err = $body['error'];
+			CakeLog::error('Stripe: ' . $err['type'] . ': ' . $err['message'], 'stripe');
+			$error = $err['message'];
+
+		} catch (Stripe_AuthenticationError $e) {
+			CakeLog::error('Stripe: API key rejected!', 'stripe');
+			$error = 'Payment processor API key error.';
+
+		} catch (Stripe_Error $e) {
+			CakeLog::error('Stripe: Stripe_Error - Stripe could be down.', 'stripe');
+			$error = 'Payment processor error, try again later.';
+
+		} catch (Exception $e) {
+			CakeLog::error('Stripe: Unknown error.', 'stripe');
+			$error = 'There was an error, try again later.';
+		}
+
+		if ($error !== null) {
+			// an error is always a string
+			return (string)$error;
+		}
+
+		CakeLog::info('Stripe: refunded charge id ' . $charge->id, 'stripe');
+
+		return $this->_formatResult('refund', $charge);
+	}
+
+/**
  * Returns an array of fields we want from Stripe's charge object
  *
  *
