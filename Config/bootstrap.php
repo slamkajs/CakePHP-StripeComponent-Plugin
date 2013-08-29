@@ -1,7 +1,7 @@
 <?php
-Configure::write('Stripe.TestSecret', 'sk_test_YUkJtxO4nLRr2qZkWNSOhdOG');
-Configure::write('Stripe.LiveSecret', 'sk_live_jPq8Tj9PiyXDtwI2G3UqYulR');
-Configure::write('Stripe.mode', 'Test');
+Configure::write('Stripe.TestSecret', getenv('STRIPE_KEY'));
+Configure::write('Stripe.LiveSecret', getenv('STRIPE_KEY'));
+Configure::write('Stripe.mode', getenv('STRIPE_MODE'));
 Configure::write('Stripe.currency', 'usd');
 Configure::write('Stripe.fields', array(
 	'addCard' => array(
