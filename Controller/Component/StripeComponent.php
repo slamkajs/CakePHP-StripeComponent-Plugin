@@ -312,7 +312,15 @@ class StripeComponent extends Component {
 				$cards_formatted[$cnt] = array(
 					'card_id' => $card->id,
 					'last4' => $card->last4,
-					'type' => $card->type);
+					'type' => $card->type,
+					'name' => $card->name,
+					'expiration' => sprintf('%s/%s', $card->exp_month, $card->exp_year),
+					'addr_line1' => $card->address_line1,
+					'addr_line2' => $card->address_line2,
+					'addr_city' => $card->address_city,
+					'addr_state' => $card->address_state,
+					'addr_country' => $card->country,
+					'addr_zip' => $card->address_zip);
 			}
 
 		} catch(Stripe_CardError $e) {
