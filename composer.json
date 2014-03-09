@@ -18,5 +18,11 @@
 		"ext-curl": "*",
 		"composer/installers": "*",
 		"stripe/stripe-php": "1.7.*"
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "master"
+        },
+        "installer-name": "DebugKit"
     }
 }
